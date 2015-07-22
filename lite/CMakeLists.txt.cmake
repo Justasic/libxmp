@@ -56,8 +56,12 @@ check_include_file(stdint.h HAVE_STDINT_H)
 check_include_file(stddef.h HAVE_STDDEF_H)
 
 if (WIN32 AND NOT LIBXMP_STATIC)
-	add_definitions(-DBUILDING_DLL)
+	add_definitions(-DBUILDING_STATIC)
 endif(WIN32 AND NOT LIBXMP_STATIC)
+
+if (WIN32 AND LIBXMP_STATIC)
+	add_definitions(-DBUILDING_DLL)
+endif (WIN32 AND LIBXMP_STATIC)
 
 if (LIBXMP_NO_IT_SUPPORT)
 	add_definitions(-DLIBXMP_CORE_DISABLE_IT)

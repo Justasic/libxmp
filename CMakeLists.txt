@@ -89,9 +89,14 @@ check_include_file(sys/types.h HAVE_SYS_TYPES_H)
 check_include_file(stdint.h HAVE_STDINT_H)
 check_include_file(stddef.h HAVE_STDDEF_H)
 
+if (WIN32 AND NOT LIBXMP_STATIC)
+	add_definitions(-DBUILDING_STATIC)
+endif(WIN32 AND NOT LIBXMP_STATIC)
+
 if (WIN32 AND LIBXMP_STATIC)
 	add_definitions(-DBUILDING_DLL)
-endif(WIN32 AND LIBXMP_STATIC)
+endif (WIN32 AND LIBXMP_STATIC)
+
 
 if (WIN32)
 	include_directories(${CMAKE_SOURCE_DIR}/src/win32)
@@ -204,6 +209,8 @@ if (LIBXMP_LITE)
 	file(COPY ${LOADER_S} DESTINATION ${XMPDIR}/src/loaders/)
 	# Copy the one and only other include file needed.
 	file(COPY ${CMAKE_SOURCE_DIR}/include/xmp.h DESTINATION ${XMPDIR}/include/libxmp-lite/)
+	# Copy the version mapping file for the linker
+	file(COPY ${CMAKE_SOURCE_DIR}/libxmp.map DESTINATION ${XMPDIR})
 
 	# Generate the CMake file prior to allowing ourselves to make a tarball
 	configure_file(${CMAKE_SOURCE_DIR}/lite/CMakeLists.txt.cmake ${XMPDIR}/CMakeLists.txt @ONLY)
