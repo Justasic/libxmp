@@ -18,7 +18,7 @@ project(libxmp-lite C)
 
 file(GLOB SOURCE_FILES RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} "src/*.c")
 file(GLOB LOADER_SOURCES RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} "src/loaders/*.c")
-list(APPEND SOURCE_FILES ${LOADER_FILES})
+list(APPEND SOURCE_FILES ${LOADER_SOURCES})
 list(SORT SOURCE_FILES)
 
 # Build static or shared? OFF = shared, ON = static
