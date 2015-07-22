@@ -21,6 +21,8 @@ list(SORT SOURCE_FILES)
 
 # Build static or shared? OFF = shared, ON = static
 option(LIBXMP_STATIC "Build the library as static" OFF)
+# Disable Impuse Tracker support
+option(LIBXMP_NO_IT_SUPPORT "Build without Impulse Tracker (.IT files) support" OFF)
 
 # Announce our project and project version.
 message(STATUS "${PROJECT_NAME} version: ${VERSION_FULL}")
@@ -53,9 +55,34 @@ check_include_file(sys/types.h HAVE_SYS_TYPES_H)
 check_include_file(stdint.h HAVE_STDINT_H)
 check_include_file(stddef.h HAVE_STDDEF_H)
 
-if (WIN32)
+if (WIN32 AND NOT LIBXMP_STATIC)
 	add_definitions(-DBUILDING_DLL)
-endif(WIN32)
+endif(WIN32 AND NOT LIBXMP_STATIC)
+
+if (LIBXMP_NO_IT_SUPPORT)
+	add_definitions(-DLIBXMP_CORE_DISABLE_IT)
+endif(LIBXMP_NO_IT_SUPPORT)
+
+if (NOT MSVC)
+	# We're compiling with a unix-like compiler (eg, gcc, clang, bcc, w/e)
+	set(CFLAGS "${CFLAGS} -Wall -Wno-unknown-warning-option -Wno-unused-but-set-variable -Wno-unused-result -Wno-array-bounds")
+
+	check_c_compiler_flag(-xldscope=hidden HAVE_XLDSCOPE_HIDDEN)
+	check_c_compiler_flag(-fvisibility=hidden HAVE_VISIBILITY_HIDDEN)
+
+	if(HAVE_XLDSCOPE_HIDDEN)
+		set(CFLAGS "${CFLAGS} -xldscope=hidden")
+	endif(HAVE_XLDSCOPE_HIDDEN)
+
+	if(HAVE_VISIBILITY_HIDDEN)
+		set(CFLAGS "${CFLAGS} -fvisibility=hidden")
+		set(LINKFLAGS "${LINKFLAGS} -Wl,--version-script,${CMAKE_SOURCE_DIR}/libxmp.map")
+	endif(HAVE_VISIBILITY_HIDDEN)
+else(NOT MSVC)
+	add_definitions(-DPATH_MAX=1024 -D_USE_MATH_DEFINES -Dinline=__inline)
+endif (NOT MSVC)
+
+add_definitions(-D_REENTRANT -DLIBXMP_CORE_PLAYER)
 
 # Add our include directories
 include_directories(${CMAKE_SOURCE_DIR}/include ${CMAKE_SOURCE_DIR}/src
@@ -66,7 +93,9 @@ include_directories(${CMAKE_SOURCE_DIR}/include ${CMAKE_SOURCE_DIR}/src
 set_source_files_properties(${SOURCE_FILES} PROPERTIES LANGUAGE C COMPILE_FLAGS "${CFLAGS}")
 # Build as static or shared depending on what the user wants
 if (LIBXMP_STATIC)
-	add_library(xmp-lite STATIC ${SOURCE_FILES})
-else (LIBXML_STATIC)
-	add_library(xmp-lite SHARED ${SOURCE_FILES})
+	add_library(${CMAKE_STATIC_LIBRARY_PREFIX}xmp-lite${CMAKE_STATIC_LIBRARY_SUFFIX} STATIC ${SOURCE_FILES})
+	set_target_properties(${CMAKE_STATIC_LIBRARY_PREFIX}xmp-lite${CMAKE_STATIC_LIBRARY_SUFFIX} PROPERTIES LINKER_LANGUAGE C PREFIX "" SUFFIX "" LINK_FLAGS "${LINKFLAGS}")
 endif (LIBXMP_STATIC)
+
+add_library(${CMAKE_SHARED_LIBRARY_PREFIX}xmp-lite${CMAKE_SHARED_LIBRARY_SUFFIX} SHARED ${SOURCE_FILES})
+set_target_properties(${CMAKE_SHARED_LIBRARY_PREFIX}xmp-lite${CMAKE_SHARED_LIBRARY_SUFFIX} PROPERTIES LINKER_LANGUAGE C PREFIX "" SUFFIX "" LINK_FLAGS "${LINKFLAGS}")

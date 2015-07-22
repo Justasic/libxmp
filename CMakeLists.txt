@@ -77,14 +77,50 @@ check_type_size(u_int64_t HAVE_U_INT64_T)
 
 #check_function_exists(strndupa HAVE_STRNDUPA)
 check_function_exists(strnlen HAVE_STRNLEN)
+check_function_exists(popen HAVE_POPEN)
+check_function_exists(mkstemp HAVE_MKSTEMP)
+check_function_exists(fnmatch HAVE_FNMATCH)
+
+check_c_source_compiles("
+#include <alloca.h>
+int main() {}" HAVE_ALLOCA_H)
 
 check_include_file(sys/types.h HAVE_SYS_TYPES_H)
 check_include_file(stdint.h HAVE_STDINT_H)
 check_include_file(stddef.h HAVE_STDDEF_H)
 
-if (WIN32)
+if (WIN32 AND LIBXMP_STATIC)
 	add_definitions(-DBUILDING_DLL)
+endif(WIN32 AND LIBXMP_STATIC)
+
+if (WIN32)
+	include_directories(${CMAKE_SOURCE_DIR}/src/win32)
+
+	# Include the windows-related files.
+	file(GLOB WIN_SOURCE_FILES RELATIVE ${CMAKE_SOURCE_DIR} "src/win32/*.c")
+	list(APPEND SOURCE_FILES ${WIN_SOURCE_FILES})
+	list(SORT SOURCE_FILES)
+
 endif(WIN32)
+
+if (NOT MSVC)
+	# We're compiling with a unix-like compiler (eg, gcc, clang, bcc, w/e)
+	set(CFLAGS "${CFLAGS} -Wall -Wno-unknown-warning-option -Wno-unused-but-set-variable -Wno-unused-result -Wno-array-bounds")
+
+	check_c_compiler_flag(-xldscope=hidden HAVE_XLDSCOPE_HIDDEN)
+	check_c_compiler_flag(-fvisibility=hidden HAVE_VISIBILITY_HIDDEN)
+
+	if(HAVE_XLDSCOPE_HIDDEN)
+		set(CFLAGS "${CFLAGS} -xldscope=hidden")
+	endif(HAVE_XLDSCOPE_HIDDEN)
+
+	if(HAVE_VISIBILITY_HIDDEN)
+		set(CFLAGS "${CFLAGS} -fvisibility=hidden")
+		set(LINKFLAGS "${LINKFLAGS} -Wl,--version-script,${CMAKE_SOURCE_DIR}/libxmp.map")
+	endif(HAVE_VISIBILITY_HIDDEN)
+else(NOT MSVC)
+	add_definitions(-DPATH_MAX=1024 -D_USE_MATH_DEFINES -Dinline=__inline)
+endif (NOT MSVC)
 
 if (LIBXMP_LITE)
 
@@ -187,8 +223,12 @@ else(LIBXMP_LITE)
 	set_source_files_properties(${SOURCE_FILES} PROPERTIES LANGUAGE C COMPILE_FLAGS "${CFLAGS}")
 	# Build as static or shared depending on what the user wants
 	if (LIBXMP_STATIC)
-		add_library(xmp STATIC ${SOURCE_FILES})
-	else (LIBXML_STATIC)
-		add_library(xmp SHARED ${SOURCE_FILES})
+		add_library(${CMAKE_STATIC_LIBRARY_PREFIX}xmp${CMAKE_STATIC_LIBRARY_SUFFIX} STATIC ${SOURCE_FILES})
+		set_target_properties(${CMAKE_STATIC_LIBRARY_PREFIX}xmp${CMAKE_STATIC_LIBRARY_SUFFIX} PROPERTIES LINKER_LANGUAGE C PREFIX "" SUFFIX "" LINK_FLAGS "${LINKFLAGS}")
 	endif (LIBXMP_STATIC)
+
+	add_library(${CMAKE_SHARED_LIBRARY_PREFIX}xmp${CMAKE_SHARED_LIBRARY_SUFFIX} SHARED ${SOURCE_FILES})
+	set_target_properties(${CMAKE_SHARED_LIBRARY_PREFIX}xmp${CMAKE_SHARED_LIBRARY_SUFFIX} PROPERTIES LINKER_LANGUAGE C PREFIX "" SUFFIX "" LINK_FLAGS "${LINKFLAGS}")
+
+
 endif(LIBXMP_LITE)
