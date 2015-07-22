@@ -87,13 +87,23 @@ if (WIN32)
 endif(WIN32)
 
 if (LIBXMP_LITE)
+
+	# Cmake seems to be a bit too retarded to do prefixed lists
+	# So this function does such a thing.
+	FUNCTION(PREPEND var prefix)
+	   SET(listVar "")
+	   FOREACH(f ${ARGN})
+	      LIST(APPEND listVar "${prefix}/${f}")
+	   ENDFOREACH(f)
+	   SET(${var} ${listVar} PARENT_SCOPE)
+	ENDFUNCTION(PREPEND)
+
 	# This one is a bit more complex, We must make a distributable directory
-	# and include a CMakeLists.txt file to compile that version.
+	# and include a CMakeLists.txt.cmake file to compile that version.
 	# We must also copy files and directories from the main source
 	# to the subdirectory.
-	set(DIST_DIR ${CMAKE_BINARY_DIR}/libxmp-lite-stagedir/)
+	set(XMPDIR ${CMAKE_BINARY_DIR}/${PROJECT_NAME}-lite-${VERSION_FULL})
 	set(BASE_SOURCES virtual.c
-					 format.c
 					 period.c
 					 player.c
 					 read_event.c
@@ -129,7 +139,6 @@ if (LIBXMP_LITE)
                       tempfile.h)
 
     set(LOADER_SOURCES xm_load.c
-                       mod_load.c
                        s3m_load.c
                        it_load.c
                        common.c
@@ -141,26 +150,37 @@ if (LIBXMP_LITE)
                        s3m.h
                        xm.h)
 
+    # Cmake is retarded apparently and we must prefix all files ourselves
+    PREPEND(LOADER_S ${CMAKE_SOURCE_DIR}/src/loaders ${LOADER_SOURCES})
+    PREPEND(BASE_S ${CMAKE_SOURCE_DIR}/src ${BASE_SOURCES} ${BASE_INCLUDES})
+
 	# Make the destination directory
-	file(MAKE_DIRECTORY ${DIST_DIR})
+	file(MAKE_DIRECTORY ${XMPDIR})
 	# Copy everything in our base directory.
 	file(GLOB LITE_DIRECTORY_OBJECTS RELATIVE ${CMAKE_SOURCE_DIR} "lite/*")
-	file(COPY ${LITE_DIRECTORY_OBJECTS} DESTINATION ${DEST_DIR})
+	# Remove the config file for the sub-cmake project, This is generated below as
+	# CMakeLists.txt and included in the tarball.
+	list(REMOVE_ITEM LITE_DIRECTORY_OBJECTS lite/CMakeLists.txt.cmake)
+	file(COPY ${LITE_DIRECTORY_OBJECTS} DESTINATION ${XMPDIR})
 	# Copy all the source files we need
-	file(COPY ${CMAKE_SOURCE_DIR}/src/${BASE_SOURCES} DESTINATION ${DEST_DIR}/src/)
-	file(COPY ${CMAKE_SOURCE_DIR}/src/${BASE_INCLUDES} DESTINATION ${DEST_DIR}/src/)
+	file(COPY ${BASE_S} DESTINATION ${XMPDIR}/src/)
 	# Copy all the loader files we need
-	file(COPY ${CMAKE_SOURCE_DIR}/src/loaders/${LOADER_SOURCES} DESTINATION ${DEST_DIR}/src/loaders/)
+	file(COPY ${LOADER_S} DESTINATION ${XMPDIR}/src/loaders/)
 	# Copy the one and only other include file needed.
-	file(COPY ${CMAKE_SOURCE_DIR}/include/xmp.h DESTINATION ${DEST_DIR}/include/libxmp-lite/)
+	file(COPY ${CMAKE_SOURCE_DIR}/include/xmp.h DESTINATION ${XMPDIR}/include/libxmp-lite/)
+
+	# Generate the CMake file prior to allowing ourselves to make a tarball
+	configure_file(${CMAKE_SOURCE_DIR}/lite/CMakeLists.txt.cmake ${XMPDIR}/CMakeLists.txt @ONLY)
 
 	# Finally, make a tarball.
-	# TODO.
+	add_custom_target(xmplite ALL COMMAND
+        ${CMAKE_COMMAND} -E tar "cJf" "${PROJECT_NAME}-lite-${VERSION_FULL}.tar.xz" "${XMPDIR}")
 
 else(LIBXMP_LITE)
 	# We're building regular libXMP
 	# Add our include directories
-	include_directories(${CMAKE_SOURCE_DIR}/include)
+	include_directories(${CMAKE_SOURCE_DIR}/include ${CMAKE_SOURCE_DIR}/src
+						${CMAKE_SOURCE_DIR}/loaders ${CMAKE_SOURCE_DIR}/depackers)
 
 	# Finally, tell CMake how to build the project
 	#add_executable(${PROJECT_NAME} ${SOURCE_FILES})
