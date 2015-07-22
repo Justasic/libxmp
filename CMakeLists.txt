@@ -46,6 +46,11 @@ list(SORT SOURCE_FILES)
 # Finally initialize our project
 project(libxmp C)
 
+# Build LIBXMP-LITE or nah?
+option(LIBXMP_LITE "Build the lightweight embeddable library" OFF)
+# Build static or shared? OFF = shared, ON = static
+option(LIBXMP_STATIC "Build the library as static" OFF)
+
 # Announce our project and project version.
 message(STATUS "${PROJECT_NAME} version: ${VERSION_FULL}")
 
@@ -77,10 +82,93 @@ check_include_file(sys/types.h HAVE_SYS_TYPES_H)
 check_include_file(stdint.h HAVE_STDINT_H)
 check_include_file(stddef.h HAVE_STDDEF_H)
 
-# Add our include directories
-include_directories(${CMAKE_SOURCE_DIR}/include)
+if (WIN32)
+	add_definitions(-DBUILDING_DLL)
+endif(WIN32)
 
-# Finally, tell CMake how to build the project
-add_executable(${PROJECT_NAME} ${SOURCE_FILES})
-set_source_files_properties(${SOURCE_FILES} PROPERTIES LANGUAGE C COMPILE_FLAGS "${CFLAGS}")
-set_target_properties(${PROJECT_NAME} PROPERTIES LINKER_LANGUAGE C PREFIX "" SUFFIX "" LINK_FLAGS "${LINKFLAGS}")
+if (LIBXMP_LITE)
+	# This one is a bit more complex, We must make a distributable directory
+	# and include a CMakeLists.txt file to compile that version.
+	# We must also copy files and directories from the main source
+	# to the subdirectory.
+	set(DIST_DIR ${CMAKE_BINARY_DIR}/libxmp-lite-stagedir/)
+	set(BASE_SOURCES virtual.c
+					 format.c
+					 period.c
+					 player.c
+					 read_event.c
+                     dataio.c
+                     lfo.c
+                     envelope.c
+                     scan.c
+                     control.c
+                     filter.c
+                     effects.c
+                     mixer.c
+                     mix_all.c
+                     load_helpers.c
+                     load.c
+                     hio.c
+                     smix.c
+                     memio.c)
+
+    set(BASE_INCLUDES common.h
+                      effects.h
+                      envelope.h
+                      format.h
+                      lfo.h
+                      list.h
+                      mixer.h
+                      period.h
+                      player.h
+                      virtual.h
+                      precomp_lut.h
+                      hio.h
+                      memio.h
+                      mdataio.h
+                      tempfile.h)
+
+    set(LOADER_SOURCES xm_load.c
+                       mod_load.c
+                       s3m_load.c
+                       it_load.c
+                       common.c
+                       itsex.c
+                       sample.c
+                       it.h
+                       loader.h
+                       mod.h
+                       s3m.h
+                       xm.h)
+
+	# Make the destination directory
+	file(MAKE_DIRECTORY ${DIST_DIR})
+	# Copy everything in our base directory.
+	file(GLOB LITE_DIRECTORY_OBJECTS RELATIVE ${CMAKE_SOURCE_DIR} "lite/*")
+	file(COPY ${LITE_DIRECTORY_OBJECTS} DESTINATION ${DEST_DIR})
+	# Copy all the source files we need
+	file(COPY ${CMAKE_SOURCE_DIR}/src/${BASE_SOURCES} DESTINATION ${DEST_DIR}/src/)
+	file(COPY ${CMAKE_SOURCE_DIR}/src/${BASE_INCLUDES} DESTINATION ${DEST_DIR}/src/)
+	# Copy all the loader files we need
+	file(COPY ${CMAKE_SOURCE_DIR}/src/loaders/${LOADER_SOURCES} DESTINATION ${DEST_DIR}/src/loaders/)
+	# Copy the one and only other include file needed.
+	file(COPY ${CMAKE_SOURCE_DIR}/include/xmp.h DESTINATION ${DEST_DIR}/include/libxmp-lite/)
+
+	# Finally, make a tarball.
+	# TODO.
+
+else(LIBXMP_LITE)
+	# We're building regular libXMP
+	# Add our include directories
+	include_directories(${CMAKE_SOURCE_DIR}/include)
+
+	# Finally, tell CMake how to build the project
+	#add_executable(${PROJECT_NAME} ${SOURCE_FILES})
+	set_source_files_properties(${SOURCE_FILES} PROPERTIES LANGUAGE C COMPILE_FLAGS "${CFLAGS}")
+	# Build as static or shared depending on what the user wants
+	if (LIBXMP_STATIC)
+		add_library(xmp STATIC ${SOURCE_FILES})
+	else (LIBXML_STATIC)
+		add_library(xmp SHARED ${SOURCE_FILES})
+	endif (LIBXMP_STATIC)
+endif(LIBXMP_LITE)
