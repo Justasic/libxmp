@@ -86,6 +86,20 @@ if (NOT MSVC)
 	endif(HAVE_VISIBILITY_HIDDEN)
 else(NOT MSVC)
 	add_definitions(-DPATH_MAX=1024 -D_USE_MATH_DEFINES -Dinline=__inline)
+
+	if (LIBXMP_STATIC)
+		# Fix microsoft's dual-runtime crap that CMake seems to fuck up.
+		set(CompilerFlags CMAKE_C_FLAGS
+	        			  CMAKE_C_FLAGS_DEBUG
+	        			  CMAKE_C_FLAGS_MINSIZEREL
+	        			  CMAKE_C_FLAGS_RELEASE
+	        			  CMAKE_C_FLAGS_RELWITHDEBINFO)
+
+		foreach(CompilerFlag ${CompilerFlags})
+			string(REPLACE "/MD" "/MT" ${CompilerFlag} "${${CompilerFlag}}")
+		endforeach(CompilerFlag ${CompilerFlags})
+	endif(LIBXMP_STATIC)
+
 endif (NOT MSVC)
 
 add_definitions(-D_REENTRANT -DLIBXMP_CORE_PLAYER)
@@ -95,13 +109,15 @@ include_directories(${CMAKE_SOURCE_DIR}/include/libxmp-lite ${CMAKE_SOURCE_DIR}/
 					${CMAKE_SOURCE_DIR}/src/loaders)
 
 # Finally, tell CMake how to build the project
-#add_executable(${PROJECT_NAME} ${SOURCE_FILES})
+# FIXME: This might need to be changed to allow /MD or /MT at the discression of the build.
 set_source_files_properties(${SOURCE_FILES} PROPERTIES LANGUAGE C COMPILE_FLAGS "${CFLAGS}")
 # Build as static or shared depending on what the user wants
 if (LIBXMP_STATIC)
+	# Build a .lib
 	add_library(${CMAKE_STATIC_LIBRARY_PREFIX}xmp-lite${CMAKE_STATIC_LIBRARY_SUFFIX} STATIC ${SOURCE_FILES})
 	set_target_properties(${CMAKE_STATIC_LIBRARY_PREFIX}xmp-lite${CMAKE_STATIC_LIBRARY_SUFFIX} PROPERTIES LINKER_LANGUAGE C PREFIX "" SUFFIX "" LINK_FLAGS "${LINKFLAGS}")
+else(LIBXMP_STATIC)
+	# Build a .dll
+	add_library(${CMAKE_SHARED_LIBRARY_PREFIX}xmp-lite${CMAKE_SHARED_LIBRARY_SUFFIX} SHARED ${SOURCE_FILES})
+	set_target_properties(${CMAKE_SHARED_LIBRARY_PREFIX}xmp-lite${CMAKE_SHARED_LIBRARY_SUFFIX} PROPERTIES LINKER_LANGUAGE C PREFIX "" SUFFIX "" LINK_FLAGS "${LINKFLAGS}")
 endif (LIBXMP_STATIC)
-
-add_library(${CMAKE_SHARED_LIBRARY_PREFIX}xmp-lite${CMAKE_SHARED_LIBRARY_SUFFIX} SHARED ${SOURCE_FILES})
-set_target_properties(${CMAKE_SHARED_LIBRARY_PREFIX}xmp-lite${CMAKE_SHARED_LIBRARY_SUFFIX} PROPERTIES LINKER_LANGUAGE C PREFIX "" SUFFIX "" LINK_FLAGS "${LINKFLAGS}")
