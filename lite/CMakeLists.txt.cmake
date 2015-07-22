@@ -91,7 +91,7 @@ endif (NOT MSVC)
 add_definitions(-D_REENTRANT -DLIBXMP_CORE_PLAYER)
 
 # Add our include directories
-include_directories(${CMAKE_SOURCE_DIR}/include ${CMAKE_SOURCE_DIR}/src
+include_directories(${CMAKE_SOURCE_DIR}/include/libxmp-lite ${CMAKE_SOURCE_DIR}/src
 					${CMAKE_SOURCE_DIR}/src/loaders)
 
 # Finally, tell CMake how to build the project
